@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 
 // --- CONFIGURATION ---
-const OPENROUTER_API_KEY = "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";
+const OPENROUTER_API_KEY = "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";
 const SEARCH_MODEL = "google/gemini-2.0-flash-001";
 const BATCH_SIZE = 5;
 
