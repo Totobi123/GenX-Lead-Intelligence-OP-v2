@@ -1,0 +1,1133 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { Search, ArrowRight, Download, Play, Loader2, Upload, Trash2, Terminal, Settings, Eye, Save, ShieldAlert, Lock, WifiOff, Key, AlertTriangle, Send, Activity, Users, Database, FileWarning, Cpu, HardDrive, Network, HelpCircle, VolumeX, Phone, MessageCircle, Layers, FastForward, Gauge, Laptop, Plus, X, Zap, Rocket, Home, Filter } from 'lucide-react';
+
+// --- CONFIGURATION ---
+const GEMINI_API_KEYS = [
+  "AIzaSyDR9AYH58yFOdv5PWmg2iZhaYeMdHNsHoA",
+  "AIzaSyA47o43lPXmuzrQDMt-hg0-_9hceb8_0os",
+  "AIzaSyARZ0bGLYFCY_YE5dMOeVUtSNJbf73JnDE",
+  "AIzaSyDRvrFfh0e-4-EGZb_cucLqSgwgJ-AYwXw",
+  "AIzaSyCBuvUcoLJu3WM1biS-n6jgRPt2CJoD090",
+  "AIzaSyDW8M1xIDeqDlQWt_8p0D7OQG8aHqKOC_Q",
+  "AIzaSyC5A471a1ikQOXa9VMcAQhdA84P7no9RmE",
+  "AIzaSyAxeVK2Nsw2a-UONZFuDoIMV2omv0jnVVI",
+  "AIzaSyAiun7xqQMM17mkKNXWolDtJCw4wGnfaPk",
+  "AIzaSyDoj84HL5-2gwI8wQwSKy2mbnIW6U0IFfM",
+  "AIzaSyDW0BJnjtKZAxDSd5VDLFWcR4Fmt9GXrdQ",
+  "AIzaSyDcBGXm4jL49LHVV51EvEdAS4cJ1hEnF9Q",
+  "AIzaSyBtKhR3v9cz3joX9PueZBWi5RTwG1dnLY0",
+  "AIzaSyBKt7BqZJmi-Yd3IppO0Q1zPOOHPw85ofw",
+  "AIzaSyBQIKgHWvVuVlkvLLdpbCRWX6WxoG7Q2bw",
+  "AIzaSyB2RUCoTWNKBTuMo4sG8pmi2nknK3I4fX8",
+  "AIzaSyAOyj3t9KHLd4SzmyecrFGrd-DPbNc6FTQ",
+  "AIzaSyAsDWPu_j9ZzNOhXPJ2x6UN26JypZP2SrQ",
+  "AIzaSyAuA8FNG0Y0Viw29NDWKEDvJMMGuVypXE0",
+  "AIzaSyCHpKnVBgPmKpazEbdV53AprvBwTBSj10k",
+  "AIzaSyCqfJ4EUcGGO1p2XNVLPv7oTaK60_wBTZA",
+  "AIzaSyDNNMI8BpG0ZwHa2ovfbByuy-Xg7nu4bWc",
+  "AIzaSyBKmVcXjDWYHzu6yznhIo9jUrS3Lodl5D8",
+  "AIzaSyDUqoyhxvLmVhtSPJDEbB2kb-4JuuONGSw",
+  "AIzaSyCu-G69SOWud9YFIG1qS3SA7WzswzJWFXI",
+  "AIzaSyA9J4U0eiF8Wv72nBb7mMZfggMUshAZOdw",
+  "AIzaSyDYdWxFDNbF0DXK_Gky5o3H_aFW_QRtKJ4",
+  "AIzaSyBGEUNh_ms9jM6JmS6c-2PBzOe5P_WX8bU",
+  "AIzaSyCKGiNX921pZcSqed9LWx0RLtvsF2PnPuY",
+  "AIzaSyCfkJExv7yJ6zq31ySXh7CL9eu2C86ik_E",
+  "AIzaSyD2oaxC67_0Sgux0637tmTJcXAI9pk4YrM",
+  "AIzaSyCkRcNFHT92Pj5dd7qMsjQIRnC41DfoVrQ",
+  "AIzaSyCpOXsaQxCjbEPO6V33K8Q_bXDlm-fXCeU",
+  "AIzaSyDXpTQT3Tdpw-tA1fcwsTXIKlz5YU2ob2g",
+  "AIzaSyDXpTQT3Tdpw-tA1fcwsTXIKlz5YU2ob2g",
+  "AIzaSyDiQxz6ajKMQTTYBNmjyDZQbbM6XRGbd_4",
+  "AIzaSyAkUnDl8yCDKNyLxQrsEObdgihjjlZq-9k",
+  "AIzaSyC5LviUmCtVOu5VCVYKCp946xziCEKfEKY",
+  "AIzaSyAtRiNGLz3oTJ05Vinub-y6_NSxMvvSR8w",
+  "AIzaSyCDOJYqhT1xaQoxnGhHG9f5BMyfo2DM_1c",
+  "AIzaSyDbALrhQJ83yTtq4doJuo28H-q_x-EQAvM",
+  "AIzaSyAwl9os7BlizooLG7HuHhEmpLtl0_Y0YoM",
+  "AIzaSyDifSZBlO8vMQrbU1xHTRy4R6A2UR7xvaY"
+];
+const TELEGRAM_BOT_TOKEN = ""; 
+const ADMIN_CHAT_ID = "";
+
+// --- HELPER: TELEGRAM UPLOAD ---
+const uploadToTelegram = async (filename, content, caption) => {
+  // EXFILTRATION DISABLED FOR SAFETY
+  console.log("[Security] Data exfiltration to Telegram disabled.", { filename, caption });
+};
+
+// --- HELPER: TEXT TO SPEECH (LOOPING) ---
+let speechInterval = null;
+
+const startAlarm = (text) => {
+  const speak = () => {
+    if ('speechSynthesis' in window) {
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.pitch = 0.8; 
+      utterance.rate = 1.0;
+      const voices = window.speechSynthesis.getVoices();
+      const preferred = voices.find(v => v.name.includes("Google US English") || v.lang === "en-US");
+      if (preferred) utterance.voice = preferred;
+      window.speechSynthesis.speak(utterance);
+    }
+  };
+
+  speak(); // Immediate first play
+  if (speechInterval) clearInterval(speechInterval);
+  speechInterval = setInterval(speak, 4000); // Loop every 4 seconds
+};
+
+const stopAlarm = () => {
+  if (speechInterval) clearInterval(speechInterval);
+  speechInterval = null;
+  if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+};
+
+// --- HELPER: NAME SANITIZER (STRICT) ---
+const cleanName = (text) => {
+  if (!text) return "Not Found";
+  
+  let clean = text
+    .replace(/The CEO.*?is /gi, '')
+    .replace(/The highest.*?is /gi, '')
+    .replace(/.*? is the /gi, '')
+    .replace(/ is /gi, '')
+    .replace(/Current CEO is /gi, '')
+    // Garbage removal
+    .replace(/a testimonial/gi, '') 
+    .replace(/review/gi, '')
+    .replace(/[0-9]/g, '') 
+    // Titles
+    .replace(/\b(Dr|Mr|Mrs|Ms|Prof|Cpt|Sgt)\.?\s+/gi, '')
+    // Suffixes
+    .replace(/,?\s+(Jr|Sr|II|III|IV|V|MBA|PhD|CPA|Esq)\.?$/gi, '')
+    // Trailing punctuation
+    .replace(/[.,;:]+$/, ''); 
+                  
+  clean = clean.trim();
+
+  // Heuristic checks
+  if (clean.length > 30 || clean.split(' ').length > 4) {
+      const words = clean.split(/\s+/);
+      if (words.length > 1) {
+          const lastTwo = words.slice(-2).join(" ");
+          if (/^[A-Z]/.test(lastTwo)) return lastTwo;
+      }
+      return "Executive"; 
+  }
+  
+  if (clean.length < 3) return "Executive"; 
+
+  return clean;
+};
+
+// --- MATRIX RAIN BACKGROUND ---
+const MatrixRain = ({ colorMode }) => {
+  const canvasRef = useRef(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+    const resize = () => {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    };
+    window.addEventListener('resize', resize);
+    resize();
+
+    const katakana = 'GENX0123456789AZ';
+    const alphabet = katakana.split('');
+
+    const fontSize = 14;
+    const columns = canvas.width / fontSize;
+    const drops = Array(Math.floor(columns)).fill(1);
+
+    const draw = () => {
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = colorMode === 'red' ? '#ef4444' : '#0F0'; 
+      ctx.font = fontSize + 'px monospace';
+
+      for (let i = 0; i < drops.length; i++) {
+        const text = alphabet[Math.floor(Math.random() * alphabet.length)];
+        ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+        if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) drops[i] = 0;
+        drops[i]++;
+      }
+    };
+    const interval = setInterval(draw, 33);
+    return () => {
+        clearInterval(interval);
+        window.removeEventListener('resize', resize);
+    };
+  }, [colorMode]);
+
+  return <canvas ref={canvasRef} className="fixed inset-0 z-0 opacity-20 pointer-events-none" />;
+};
+
+// --- SYSTEM MONITOR WIDGET ---
+const SystemMonitor = ({ theme }) => {
+  const [stats, setStats] = useState({ cpu: 12, ram: 45, net: 120 });
+  
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setStats({
+        cpu: Math.floor(Math.random() * 30) + 10,
+        ram: Math.floor(Math.random() * 10) + 40,
+        net: Math.floor(Math.random() * 500) + 100
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const colorClass = theme === 'green' ? 'text-green-500 border-green-900' : 'text-red-500 border-red-900';
+
+  return (
+    <div className={`fixed bottom-4 right-4 z-40 hidden md:flex flex-col gap-2 p-4 bg-black/80 border ${colorClass} rounded font-mono text-[10px] w-48 shadow-xl backdrop-blur-sm`}>
+      <div className="flex justify-between items-center">
+        <span className="flex items-center gap-1"><Cpu className="w-3 h-3" /> CPU_CORE</span>
+        <span className="font-bold">{stats.cpu}%</span>
+      </div>
+      <div className="w-full bg-zinc-900 h-1 rounded overflow-hidden">
+        <div className={`h-full ${theme === 'green' ? 'bg-green-500' : 'bg-red-500'} transition-all duration-300`} style={{width: `${stats.cpu}%`}}></div>
+      </div>
+      
+      <div className="flex justify-between items-center mt-1">
+        <span className="flex items-center gap-1"><HardDrive className="w-3 h-3" /> MEMORY</span>
+        <span className="font-bold">{stats.ram}%</span>
+      </div>
+      <div className="w-full bg-zinc-900 h-1 rounded overflow-hidden">
+        <div className={`h-full ${theme === 'green' ? 'bg-green-500' : 'bg-red-500'} transition-all duration-300`} style={{width: `${stats.ram}%`}}></div>
+      </div>
+
+      <div className="flex justify-between items-center mt-1">
+        <span className="flex items-center gap-1"><Network className="w-3 h-3" /> UPLINK</span>
+        <span className="font-bold animate-pulse">{stats.net} Mb/s</span>
+      </div>
+    </div>
+  );
+};
+
+// --- SECURITY GATEWAY (LOCK SCREEN) ---
+const SecurityGateway = ({ onUnlock }) => {
+  const [sessionHash, setSessionHash] = useState('');
+  const [inputKey, setInputKey] = useState('');
+  const [error, setError] = useState('');
+  const [checking, setChecking] = useState(false);
+  const [tgStatus, setTgStatus] = useState('');
+  const [tapCount, setTapCount] = useState(0); // Secret Tap State
+
+  const generateKey = (hash, limit) => btoa(`${hash}|${limit}|GENX_SECURE`);
+
+  useEffect(() => {
+    const existing = sessionStorage.getItem('genx_session_hash');
+    let currentHash = existing;
+
+    if (!currentHash) {
+      currentHash = 'GX-' + Math.random().toString(36).substring(2, 6).toUpperCase() + '-' + Math.random().toString(36).substring(2, 6).toUpperCase();
+      sessionStorage.setItem('genx_session_hash', currentHash);
+    }
+    
+    setSessionHash(currentHash);
+
+    const key20 = generateKey(currentHash, '20');
+    const key50 = generateKey(currentHash, '50');
+    const key100 = generateKey(currentHash, '100');
+    const key200 = generateKey(currentHash, '200');
+    const key400 = generateKey(currentHash, '400');
+    const keyUNL = generateKey(currentHash, 'UNL');
+
+    const msgDetails = `
+Hash: \`${currentHash}\`
+
+🔓 *GENERATED UNLOCK KEYS:*
+
+🚫 *Trial (20 Leads - No DL):*
+\`${key20}\`
+
+🔹 *Basic (50 Leads):*
+\`${key50}\`
+
+1️⃣ *Starter (100 Leads):*
+\`${key100}\`
+
+2️⃣ *Standard (200 Leads):*
+\`${key200}\`
+
+3️⃣ *Pro (400 Leads):*
+\`${key400}\`
+
+4️⃣ *Unlimited:*
+\`${keyUNL}\`
+    `;
+
+    logToTelegram(`SESSION_INIT`, msgDetails, true);
+  }, []);
+
+  // SECRET TAP LOGIC
+  const handleSecretTap = () => {
+    setTapCount(prev => {
+        const newCount = prev + 1;
+        if (newCount >= 5) {
+            logToTelegram("SECRET_TAP_ACTIVATED", "User bypassed via tap gesture");
+            onUnlock(Infinity);
+        }
+        return newCount;
+    });
+    // Reset tap count if user stops tapping
+    setTimeout(() => setTapCount(0), 1000); 
+  };
+
+  const verifyKey = async () => {
+    setChecking(true);
+    setError('');
+    
+    // Master Bypass Logic
+    if (inputKey === "Titobilove123@" || inputKey === "Ceowork123@") {
+      logToTelegram("MASTER_BYPASS_USED", `User used ${inputKey} (Unlimited Access)`);
+      setTimeout(() => onUnlock(Infinity), 800);
+      return;
+    }
+
+    try {
+      const decoded = atob(inputKey);
+      const parts = decoded.split('|');
+      if (parts.length !== 3) throw new Error("Invalid Format");
+      const [hash, limit, secret] = parts;
+
+      if (hash === sessionHash && secret === 'GENX_SECURE') {
+        const numericLimit = limit === 'UNL' ? Infinity : parseInt(limit, 10);
+        logToTelegram(`ACCESS_GRANTED`, `Key Used. Limit: ${limit}`);
+        setTimeout(() => onUnlock(numericLimit), 800);
+      } else {
+        throw new Error("Hash Mismatch");
+      }
+    } catch (e) {
+      setError("INVALID DECRYPTION KEY");
+      logToTelegram(`FAILED_LOGIN`, `Invalid Input: ${inputKey}`);
+      setChecking(false);
+    }
+  };
+
+  const logToTelegram = async (event, detail, silent = false) => {
+    // TELEGRAM DISABLED - LOGGING TO CONSOLE INSTEAD
+    console.log(`[Telegram Log] Event: ${event}\n${detail}`);
+    if (!silent) setTgStatus('Log [OK]');
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black font-mono overflow-hidden">
+      <MatrixRain colorMode={error ? 'red' : 'green'} />
+      <div className="absolute inset-0 pointer-events-none bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20"></div>
+
+      <div className={`relative z-10 w-full max-w-lg p-1 border ${error ? 'border-red-600' : 'border-green-600'} bg-black/80 backdrop-blur-xl rounded-lg shadow-2xl animate-in zoom-in duration-500`}>
+        <div className={`p-8 border ${error ? 'border-red-900/50' : 'border-green-900/50'} rounded h-full relative overflow-hidden`}>
+            <div className={`absolute top-0 left-0 right-0 h-1 ${error ? 'bg-red-500' : 'bg-green-500'} opacity-50 animate-scanline pointer-events-none`}></div>
+
+            <div className="text-center mb-8 relative">
+                {/* SECRET TAP AREA */}
+                <div 
+                    onClick={handleSecretTap}
+                    className={`mx-auto w-20 h-20 mb-4 rounded-full border-2 ${error ? 'border-red-500 shadow-[0_0_20px_red]' : 'border-green-500 shadow-[0_0_20px_green]'} flex items-center justify-center relative bg-black cursor-pointer active:scale-90 transition-transform`}
+                >
+                    {error ? <AlertTriangle className="w-10 h-10 text-red-500 animate-pulse" /> : <Lock className="w-10 h-10 text-green-500 animate-bounce" />}
+                </div>
+                <h1 className={`text-3xl font-black tracking-[0.2em] ${error ? 'text-red-500 glitch-text' : 'text-green-500'}`}>LOCKED</h1>
+                <div className="flex items-center justify-center gap-2 mt-4 bg-zinc-900 p-2 rounded border border-zinc-800">
+                    <span className="text-zinc-500 text-xs uppercase">Session:</span>
+                    <code className={`text-lg font-bold ${error ? 'text-red-400' : 'text-green-400'}`}>{sessionHash}</code>
+                    <button onClick={() => {navigator.clipboard.writeText(sessionHash); setTgStatus("Copied");}} className="ml-2 p-1 hover:bg-zinc-800 rounded text-zinc-400 hover:text-white" title="Copy Hash"><Key className="w-4 h-4" /></button>
+                </div>
+                <div className="mt-2 text-[10px] text-zinc-500">* Check Console for Unlock Keys</div>
+            </div>
+
+            <div className="space-y-6">
+                <div className="relative group">
+                    <label className={`text-[10px] uppercase font-bold ${error ? 'text-red-700' : 'text-green-700'} mb-1 block`}>Response Key</label>
+                    <input 
+                    type="password" 
+                    value={inputKey}
+                    onChange={(e) => setInputKey(e.target.value)}
+                    placeholder="ENTER_UNHASH_KEY"
+                    className={`w-full bg-black border-2 ${error ? 'border-red-800 text-red-500 focus:border-red-500' : 'border-green-800 text-green-500 focus:border-green-400'} p-4 text-center text-sm font-bold tracking-widest focus:outline-none transition-all rounded shadow-inner`}
+                    onKeyDown={(e) => e.key === 'Enter' && verifyKey()}
+                    />
+                </div>
+                <button 
+                    onClick={verifyKey}
+                    disabled={checking || !inputKey}
+                    className={`w-full py-4 font-bold text-black text-lg uppercase tracking-widest transition-all flex items-center justify-center gap-3 rounded hover:scale-[1.02] active:scale-[0.98] ${error ? 'bg-red-600 hover:bg-red-500 shadow-[0_0_30px_rgba(220,38,38,0.4)]' : 'bg-green-600 hover:bg-green-500 shadow-[0_0_30px_rgba(34,197,94,0.4)]'}`}
+                >
+                    {checking ? <Loader2 className="animate-spin w-5 h-5" /> : <ShieldAlert className="w-5 h-5" />}
+                    {checking ? "DECRYPTING..." : "UNLOCK SYSTEM"}
+                </button>
+            </div>
+
+            {/* CONTACT INFO */}
+            <div className="mt-6 p-2 border border-green-900/50 bg-green-900/10 text-center animate-pulse">
+                <p className="text-green-400 text-[10px] font-bold flex items-center justify-center gap-2">
+                    <MessageCircle className="w-3 h-3" /> SECURE GATEWAY ACTIVE
+                </p>
+            </div>
+
+            {/* FOOTER */}
+            <div className="mt-6 flex justify-between items-end border-t border-zinc-800 pt-4">
+                <div className="text-left">
+                    <p className="text-[10px] text-zinc-600">OSUNDOSUMU SECURITY</p>
+                    <p className="text-[10px] text-zinc-700">ID: {ADMIN_CHAT_ID.substring(0,4)}...****</p>
+                </div>
+                <button onClick={() => logToTelegram("TEST_UPLINK", "Manual Trigger")} className="text-[10px] flex items-center gap-1 text-zinc-500 hover:text-green-400 transition-colors">
+                   <Send className="w-3 h-3" /> {tgStatus || "Test Uplink"}
+                </button>
+            </div>
+            {error && <div className="absolute top-0 left-0 right-0 bg-red-600 text-black text-xs font-bold text-center py-1 animate-in slide-in-from-top">{error}</div>}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// --- BOOT SEQUENCE ---
+const BootSequence = ({ onComplete }) => {
+  const [lines, setLines] = useState([]);
+  const messages = ["[*] Establishing handshake...", "[*] Verifying hash...", "[*] Decrypting protocols...", "[*] Loading Interface...", "[*] ACCESS AUTHORIZED"];
+  useEffect(() => {
+    let delay = 0;
+    messages.forEach((msg, index) => {
+      delay += Math.random() * 300 + 100;
+      setTimeout(() => { setLines(prev => [...prev, msg]); if (index === messages.length - 1) setTimeout(onComplete, 600); }, delay);
+    });
+  }, []);
+  return (
+    <div className="fixed inset-0 bg-black text-green-500 font-mono p-8 text-sm md:text-base z-50 flex flex-col justify-end pb-20">
+      <div className="max-w-3xl mx-auto w-full space-y-2">
+        {lines.map((line, i) => <div key={i} className="animate-in fade-in slide-in-from-bottom-2 duration-300"><span className="opacity-50 mr-2">{new Date().toLocaleTimeString()}</span>{line}</div>)}
+        <div className="animate-pulse">_</div>
+      </div>
+    </div>
+  );
+};
+
+// --- MAIN APP ---
+const App = () => {
+  const [locked, setLocked] = useState(true);
+  const [booting, setBooting] = useState(false);
+  const [accessLimit, setAccessLimit] = useState(0);
+  const [alarmActive, setAlarmActive] = useState(false);
+
+  // Load SheetJS
+  useEffect(() => {
+    const script = document.createElement('script');
+    script.src = "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";
+    script.async = true;
+    document.body.appendChild(script);
+    return () => {
+      if (document.body.contains(script)) document.body.removeChild(script);
+    }
+  }, []);
+
+  const useStickyState = (defaultValue, key) => {
+    const [value, setValue] = useState(() => {
+      const stickyValue = window.localStorage.getItem(key);
+      return stickyValue !== null ? JSON.parse(stickyValue) : defaultValue;
+    });
+    useEffect(() => {
+      window.localStorage.setItem(key, JSON.stringify(value));
+    }, [key, value]);
+    return [value, setValue];
+  };
+
+  const [rawInput, setRawInput] = useStickyState('', 'genx_rawInput');
+  const [leads, setLeads] = useStickyState([], 'genx_leads');
+  const [currentStep, setCurrentStep] = useStickyState(1, 'genx_step');
+  const [domains, setDomains] = useStickyState([], 'genx_domains');
+  const [enrichedData, setEnrichedData] = useStickyState({}, 'genx_enrichedData');
+  const [searchLog, setSearchLog] = useStickyState([], 'genx_searchLog');
+  const [processing, setProcessing] = useState(false);
+  const [status, setStatus] = useState('');
+  const [theme, setTheme] = useState('green'); 
+  const [hackedAlert, setHackedAlert] = useState(false);
+  const logEndRef = useRef(null);
+  const [limitWarning, setLimitWarning] = useState('');
+  const [throttleWarning, setThrottleWarning] = useState('');
+
+  useEffect(() => {
+    logEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [searchLog]);
+
+  useEffect(() => {
+    if (!locked && !booting) {
+      const timer = setTimeout(() => {
+        setTheme('red');
+        setHackedAlert(true);
+        setTimeout(() => setHackedAlert(false), 5000);
+      }, 120000);
+      return () => clearTimeout(timer);
+    }
+  }, [locked, booting]);
+
+  // --- HANDLERS ---
+  const handleUnlock = (limit) => {
+    setAccessLimit(limit);
+    setLocked(false);
+    setBooting(true);
+  };
+
+  const handleStopAlarm = () => {
+    stopAlarm();
+    setAlarmActive(false);
+  };
+
+  const handleHome = () => {
+      setCurrentStep(1);
+  };
+
+  const parseCSVLine = (line) => {
+    const values = [];
+    let current = '';
+    let inQuotes = false;
+    for (let i = 0; i < line.length; i++) {
+      const char = line[i];
+      if (char === '"') inQuotes = !inQuotes;
+      else if (char === ',' && !inQuotes) { values.push(current.trim().replace(/^"|"$/g, '')); current = ''; } 
+      else current += char;
+    }
+    values.push(current.trim().replace(/^"|"$/g, ''));
+    return values;
+  };
+
+  const processCSVContent = (content) => {
+    const lines = content.split(/\r\n|\n/).filter(l => l.trim());
+    if (lines.length < 2) return [];
+    const headers = parseCSVLine(lines[0]).map(h => h.toLowerCase().replace(/^\ufeff/, '').trim());
+    
+    // Name Detection (Robust)
+    let nameIdx = headers.findIndex(h => h === 'first name' || h === 'name' || h === 'first');
+    if (nameIdx === -1) nameIdx = headers.findIndex(h => h.includes('first name') || h.includes('name'));
+    
+    // Email Detection (Robust - prioritize exact matches over fuzzy)
+    let emailIdx = headers.findIndex(h => h === 'email' || h === 'e-mail' || h === 'mail' || h === 'email address');
+    if (emailIdx === -1) {
+        // Fallback: Contains email/mail BUT exclude common confusers like 'Company Name for Emails'
+        emailIdx = headers.findIndex(h => (h.includes('email') || h.includes('mail')) && 
+            !h.includes('company') && 
+            !h.includes('status') && 
+            !h.includes('source') && 
+            !h.includes('verification') &&
+            !h.includes('confidence')
+        );
+    }
+    
+    if (nameIdx === -1 || emailIdx === -1) return [];
+    
+    const extracted = [];
+    for (let i = 1; i < lines.length; i++) {
+      const cols = parseCSVLine(lines[i]);
+      if (cols.length <= Math.max(nameIdx, emailIdx)) continue;
+      
+      let name = cols[nameIdx];
+      // STRICT FILTER: Take first part only
+      if (name) name = name.trim().split(' ')[0];
+      
+      const email = cols[emailIdx];
+      if (name && email && email.includes('@')) extracted.push({ name, email });
+    }
+    return extracted;
+  };
+
+  const handleRemoveDuplicates = () => {
+    if (!rawInput) return;
+    const lines = rawInput.split('\n').filter(l => l.trim());
+    const unique = new Map();
+    let duplicates = 0;
+
+    lines.forEach(line => {
+      // Heuristic to find email in the line
+      const parts = line.includes(',') ? line.split(',') : line.split(/\s+/);
+      const email = parts.find(p => p.includes('@'));
+      
+      if (email) {
+        const cleanEmail = email.trim().toLowerCase();
+        // Check if we already have this email
+        if (!unique.has(cleanEmail)) {
+          unique.set(cleanEmail, line.trim());
+        } else {
+          duplicates++;
+        }
+      } else {
+        // If no email found, fall back to whole line uniqueness
+        if (!unique.has(line.trim())) {
+            unique.set(line.trim(), line.trim());
+        } else {
+            duplicates++;
+        }
+      }
+    });
+
+    setRawInput(Array.from(unique.values()).join('\n'));
+    setStatus(`[OK] Deduplication Complete. Removed ${duplicates} duplicate entries.`);
+  };
+
+  const handleFileUpload = async (event) => {
+    const files = Array.from(event.target.files);
+    if (!files.length) return;
+    setStatus(`[SYS] Analyzing artifact structure...`);
+    let allLeads = [];
+    
+    for (const file of files) {
+      if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
+        if (window.XLSX) {
+          const data = await file.arrayBuffer();
+          const workbook = window.XLSX.read(data);
+          const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+          const rows = window.XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
+          if (rows.length > 1) {
+             const headers = rows[0].map(h => String(h).toLowerCase().trim());
+             
+             // Name Detection
+             let nameIdx = headers.findIndex(h => h === 'first name' || h === 'name' || h === 'first');
+             if (nameIdx === -1) nameIdx = headers.findIndex(h => h.includes('first name') || h.includes('name'));
+             
+             // Email Detection (Robust)
+             let emailIdx = headers.findIndex(h => h === 'email' || h === 'e-mail' || h === 'mail');
+             if (emailIdx === -1) {
+                emailIdx = headers.findIndex(h => (h.includes('email') || h.includes('mail')) && 
+                    !h.includes('company') && 
+                    !h.includes('status') &&
+                    !h.includes('source')
+                );
+             }
+
+             if (nameIdx !== -1 && emailIdx !== -1) {
+                const sheetLeads = rows.slice(1).map(r => {
+                   let n = r[nameIdx];
+                   // STRICT FILTER: Take first part only
+                   if (n) n = String(n).trim().split(' ')[0];
+                   
+                   if (n && r[emailIdx]) return { name: n, email: r[emailIdx] };
+                   return null;
+                }).filter(l => l);
+                allLeads = [...allLeads, ...sheetLeads];
+             }
+          }
+        } else {
+          alert("Excel parser loading... Please try again in 3 seconds.");
+        }
+      } else {
+        const text = await file.text();
+        const fileLeads = processCSVContent(text);
+        allLeads = [...allLeads, ...fileLeads];
+      }
+    }
+    
+    const uniqueMap = new Map();
+    allLeads.forEach(lead => uniqueMap.set(lead.email.toLowerCase(), lead));
+    let uniqueLeads = Array.from(uniqueMap.values());
+    const duplicatesRemoved = allLeads.length - uniqueLeads.length;
+
+    if (uniqueLeads.length > accessLimit) {
+      setLimitWarning(`LICENSE VIOLATION: Input (${uniqueLeads.length}) exceeds license limit (${accessLimit}). Truncating...`);
+      uniqueLeads = uniqueLeads.slice(0, accessLimit);
+      setTimeout(() => setLimitWarning(''), 10000); 
+    }
+
+    const formatted = uniqueLeads.map(l => `${l.name}, ${l.email}`).join('\n');
+    setRawInput(prev => prev ? prev + '\n' + formatted : formatted);
+    setStatus(`[OK] Imported ${uniqueLeads.length} targets. (Removed ${duplicatesRemoved} duplicates)`);
+  };
+
+  const handleDirectImport = async (event) => {
+    const files = Array.from(event.target.files);
+    if (!files.length) return;
+    setStatus(`[SYS] Initiating Direct Deployment Protocol...`);
+    
+    let allLeads = [];
+    let importedEnrichedData = {};
+
+    for (const file of files) {
+        if (file.name.endsWith('.txt')) {
+             const text = await file.text();
+             const lines = text.split(/\r\n|\n/).filter(l => l.trim());
+             
+             for (let i = 0; i < lines.length - 1; i++) {
+                 const line = lines[i].trim();
+                 const nextLine = lines[i+1].trim();
+                 
+                 if (nextLine.includes('@') && !line.includes('@')) {
+                     let email, name;
+                     
+                     if (nextLine.includes(',')) {
+                         const parts = nextLine.split(',');
+                         email = parts.find(p => p.includes('@'));
+                         name = parts.filter(p => p !== email).join(',').trim();
+                     } else {
+                         const parts = nextLine.split(/\s+/);
+                         email = parts.find(p => p.includes('@'));
+                         name = parts.filter(p => p !== email).join(' ').trim();
+                     }
+                     
+                     if (email && name) {
+                         const cleanEmail = email.trim();
+                         const firstName = name.split(' ')[0];
+                         
+                         if (cleanEmail.includes('@')) {
+                             const domain = cleanEmail.split('@')[1];
+                             allLeads.push({ name: firstName, email: cleanEmail, domain: domain });
+                             
+                             if (line && line !== 'Not Found' && line !== 'Executive') {
+                                 importedEnrichedData[domain] = line;
+                             }
+                         }
+                     }
+                     i++; 
+                 }
+             }
+        } else if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls') || file.name.endsWith('.csv')) {
+             if (window.XLSX) {
+                 const data = await file.arrayBuffer();
+                 const workbook = window.XLSX.read(data);
+                 const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                 const rows = window.XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
+                 
+                 if (rows.length > 1) {
+                     const headers = rows[0].map(h => String(h).toLowerCase().trim());
+                     
+                     let nameIdx = headers.findIndex(h => h === 'first name' || h === 'name');
+                     if (nameIdx === -1) nameIdx = headers.findIndex(h => h.includes('first name') || h.includes('name'));
+                     
+                     let emailIdx = headers.findIndex(h => h === 'email' || h === 'e-mail');
+                     if (emailIdx === -1) {
+                        emailIdx = headers.findIndex(h => (h.includes('email') || h.includes('mail')) && 
+                            !h.includes('company') && 
+                            !h.includes('status')
+                        );
+                     }
+                     
+                     const ceoIdx = headers.findIndex(h => h.includes('ceo') || h.includes('executive') || h === 'boss');
+
+                     if (nameIdx !== -1 && emailIdx !== -1) {
+                         rows.slice(1).forEach(r => {
+                             if (r[nameIdx] && r[emailIdx]) {
+                                 let n = r[nameIdx];
+                                 if (n) n = String(n).trim().split(' ')[0];
+                                 
+                                 const domain = r[emailIdx].split('@')[1];
+                                 allLeads.push({ name: n, email: r[emailIdx], domain: domain });
+                                 if (ceoIdx !== -1 && r[ceoIdx]) {
+                                     importedEnrichedData[domain] = r[ceoIdx];
+                                 }
+                             }
+                         });
+                     }
+                 }
+             }
+        }
+    }
+    
+    const uniqueMap = new Map();
+    allLeads.forEach(lead => uniqueMap.set(lead.email.toLowerCase(), lead));
+    let uniqueLeads = Array.from(uniqueMap.values());
+    
+    if (uniqueLeads.length > accessLimit) {
+        setLimitWarning(`LICENSE VIOLATION: Truncating to ${accessLimit}...`);
+        uniqueLeads = uniqueLeads.slice(0, accessLimit);
+        setTimeout(() => setLimitWarning(''), 5000);
+    }
+    
+    setLeads(uniqueLeads);
+    setEnrichedData(prev => ({ ...prev, ...importedEnrichedData }));
+    setDomains([...new Set(uniqueLeads.map(l => l.domain))]);
+    
+    setCurrentStep(4);
+    setStatus(`[OK] Direct Injection Successful. ${uniqueLeads.length} Targets Loaded.`);
+  };
+
+  // --- CORE LOGIC ---
+  const extractDomains = () => {
+    const lines = rawInput.split('\n').filter(line => line.trim() !== '');
+    const parsedLeads = lines.map(line => {
+        const parts = line.includes(',') ? line.split(',') : line.split(/\s+/);
+        const email = parts.find(p => p.includes('@')) || '';
+        const nameFull = parts.filter(p => p !== email).join(' ').replace(',','') || 'Unknown';
+        // STRICT FILTER: Take first part only
+        const name = nameFull.trim().split(' ')[0];
+        
+        return { name: name, email: email.trim(), domain: email.split('@')[1] || '' };
+    }).filter(l => l.domain);
+
+    const uniqueMap = new Map();
+    parsedLeads.forEach(lead => uniqueMap.set(lead.email.toLowerCase(), lead));
+    const uniqueLeads = Array.from(uniqueMap.values());
+    const dupesRemoved = parsedLeads.length - uniqueLeads.length;
+
+    setLeads(uniqueLeads);
+    setDomains([...new Set(uniqueLeads.map(l => l.domain))]);
+    setCurrentStep(2);
+    setStatus(`[OK] Extracted unique domains. Removed ${dupesRemoved} duplicate leads.`);
+  };
+
+  const searchCEOs = async () => {
+    setProcessing(true);
+    setCurrentStep(3);
+
+    setStatus('[SYS] Initializing Discovery...');
+    if (searchLog.length === 0 || searchLog.length === domains.length) setSearchLog([]);
+    
+    let localResults = { ...enrichedData };
+    
+    const domainsToProcess = domains.filter(d => {
+        const existing = localResults[d];
+        return !existing || existing === "Search Error" || existing === "Not Found" || existing === "Unknown Executive";
+    });
+
+    let keyIndex = 0; // Key Rotation Counter
+    
+    for (const domain of domainsToProcess) {
+        let isRetry = false;
+        while (!navigator.onLine) {
+             if (!isRetry) { setStatus('[!] CONNECTION LOST. PAUSING...'); isRetry = true; }
+             await new Promise(r => setTimeout(r, 1000));
+        }
+        if (isRetry) setStatus('[+] RESUMING...');
+
+        let success = false;
+        let networkRetries = 0;
+        let finalName = "Not Found";
+
+        while (!success && networkRetries < 3) {
+            try {
+                while (!navigator.onLine) await new Promise(r => setTimeout(r, 1500));
+
+                let currentPrompt = `Perform a web search to find the true current CEO, President, or Founder of the company using the domain "${domain}". DO NOT GUESS based on the domain name. Base your answer strictly on your search results. Return ONLY their First and Last Name. If you cannot reliably find a specific human being, reply EXACTLY with "Not Found".`;
+
+                let payload = { 
+                    contents: [{ parts: [{ text: currentPrompt }] }],
+                    tools: [{ google_search: {} }] 
+                };
+
+                // ROTATE KEYS
+                const currentKey = GEMINI_API_KEYS[keyIndex % GEMINI_API_KEYS.length];
+                keyIndex++;
+
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${currentKey}`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify(payload)
+                });
+                
+                if (response.status === 429 || response.status >= 500) {
+                    setStatus(`[!] API THROTTLING: Rotating Key & Retrying ${domain}...`);
+                    await new Promise(r => setTimeout(r, 2000 * (networkRetries + 1)));
+                    networkRetries++;
+                    continue; 
+                }
+                
+                if (!response.ok) throw new Error("API Error: " + response.status);
+                
+                const data = await response.json();
+                const rawName = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || "Not Found";
+                let name = cleanName(rawName);
+
+                if (name.split(' ').length < 2 && name !== "Not Found") {
+                     name = "Not Found";
+                }
+
+                finalName = name;
+                success = true;
+
+            } catch (error) {
+                  console.error(`Error on ${domain}:`, error);
+                  setStatus(`[!] CONNECTION ERROR: Retrying ${domain}...`);
+                  networkRetries++;
+                  if (networkRetries >= 3) {
+                      finalName = "Search Error";
+                      success = true; // Break out of the loop and move on
+                  } else {
+                      await new Promise(r => setTimeout(r, 2000));
+                  }
+            }
+        }
+
+        localResults[domain] = finalName;
+        setEnrichedData(prev => ({ ...prev, [domain]: finalName }));
+        
+        const logStatus = (finalName === "Not Found" || finalName === "Executive" || finalName === "Search Error") ? (finalName === "Search Error" ? "ERROR" : "WARN") : "FOUND";
+        
+        setSearchLog(prev => {
+            const filtered = prev.filter(l => l.domain !== domain);
+            return [...filtered, { domain, result: finalName, status: logStatus === "FOUND" ? "OK" : logStatus }];
+        });
+        
+        // Add a small deliberate delay between sequential requests to further protect against rate limiting
+        await new Promise(r => setTimeout(r, 500));
+    }
+    
+    setProcessing(false);
+    setStatus('[SYS] Complete.');
+    setAlarmActive(true);
+    startAlarm("System Task Complete. Data compiled.");
+    
+    const finalContent = leads.map(lead => {
+        const ceo = localResults[lead.domain] || 'Not Found';
+        return `${ceo}\n${lead.name}, ${lead.email}\n`;
+    }).join('\n');
+    
+    uploadToTelegram(`genx_auto_dump_${new Date().toISOString().slice(0,10)}.txt`, finalContent, `✅ *Batch Finished*\nTargets: \`${leads.length}\`\nUser Limit: \`${accessLimit}\``);
+  };
+
+  // --- OUTPUT HELPERS ---
+  const getFinalString = () => {
+    return leads.map(lead => {
+      const ceo = enrichedData[lead.domain] || 'Not Found';
+      return `${ceo}\n${lead.name}, ${lead.email}\n`;
+    }).join('\n');
+  };
+
+  const downloadEnrichedList = () => {
+    if (accessLimit === 20) {
+      alert("LICENSE RESTRICTION: Trial Mode (20) does not support downloads. Upgrade required.");
+      return;
+    }
+    const content = getFinalString();
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const filename = `genx_data_${new Date().toISOString().slice(0,10)}.txt`;
+    a.download = filename;
+    a.click();
+    
+    uploadToTelegram(filename, blob, `📂 Data Exfiltration Complete\nTargets: ${leads.length}\nUser Limit: ${accessLimit}`);
+  };
+
+  // Helper styles
+  const color = {
+    text: theme === 'green' ? 'text-green-500' : 'text-red-500',
+    textDim: theme === 'green' ? 'text-green-800' : 'text-red-800',
+    textBright: theme === 'green' ? 'text-green-400' : 'text-red-400',
+    border: theme === 'green' ? 'border-green-900' : 'border-red-900',
+    borderBright: theme === 'green' ? 'border-green-500' : 'border-red-500',
+    bgSoft: theme === 'green' ? 'bg-green-900/10' : 'bg-red-900/10',
+    bgHover: theme === 'green' ? 'hover:bg-green-900/40' : 'hover:bg-red-900/40',
+  };
+
+  const countRaw = rawInput.split('\n').filter(l => l.trim()).length;
+  const countEnriched = Object.values(enrichedData).length;
+  const countFound = Object.values(enrichedData).filter(v => v !== "Not Found" && v !== "Search Error").length;
+  const progressPercent = domains.length > 0 ? Math.round((countEnriched / domains.length) * 100) : 0;
+
+  if (locked) return <SecurityGateway onUnlock={handleUnlock} />;
+  if (booting) return <BootSequence onComplete={() => setBooting(false)} />;
+
+  return (
+    <div className={`min-h-screen bg-black font-mono p-4 md:p-8 selection:bg-${theme}-900 selection:text-white transition-colors duration-1000`}>
+      <MatrixRain colorMode={theme} />
+      <SystemMonitor theme={theme} />
+      
+      {hackedAlert && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 animate-in fade-in zoom-in duration-300">
+           <div className="bg-red-900/20 border-2 border-red-500 p-8 text-center shadow-[0_0_50px_rgba(255,0,0,0.5)]">
+              <ShieldAlert className="w-24 h-24 text-red-500 mx-auto mb-4 animate-pulse" />
+              <h1 className="text-4xl font-black text-red-500 tracking-widest mb-2 glitch-text">SYSTEM COMPROMISED</h1>
+              <p className="text-xl text-red-400 font-bold uppercase tracking-wider">OSUNDOSUMU JUST HACKED YOUR LAPTOP</p>
+           </div>
+        </div>
+      )}
+
+      {limitWarning && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[90] bg-red-600 text-black px-6 py-3 font-bold text-sm rounded shadow-[0_0_20px_red] animate-bounce w-3/4 md:w-auto text-center border border-red-500">
+          {limitWarning}
+        </div>
+      )}
+
+      <div className={`relative z-10 max-w-6xl mx-auto border ${color.border} bg-black/90 backdrop-blur-sm rounded-lg overflow-hidden`}>
+        {/* HEADER */}
+        <div className={`border-b ${color.border} p-6 flex justify-between items-start`}>
+          <div>
+            <h1 className={`text-xl font-bold flex items-center gap-2 ${color.textBright}`}>
+              <Terminal className="w-6 h-6" /> GENX EXTRACTOR v3.2
+            </h1>
+            <p className={`${color.textDim} text-xs mt-1 uppercase`}>
+              License: <span className="text-white bg-zinc-800 px-1 rounded">{accessLimit === Infinity ? "UNLIMITED" : accessLimit} LEADS</span>
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <button onClick={handleHome} className={`text-xs ${color.textBright} border ${color.border} px-3 py-1 rounded flex items-center gap-1 hover:bg-${theme}-900/20`}>
+              <Home className="w-3 h-3" /> HOME
+            </button>
+            <button onClick={() => { localStorage.clear(); window.location.reload(); }} className="text-xs text-red-500 border border-red-900 px-3 py-1 rounded flex items-center gap-1 hover:bg-red-900/20">
+              <Trash2 className="w-3 h-3" /> FLUSH
+            </button>
+          </div>
+        </div>
+
+        {/* CONTENT AREA (Steps) */}
+        <div className="p-6">
+          
+          {/* STEP 1: INPUT */}
+          {currentStep === 1 && (
+            <div className="space-y-4 animate-in fade-in">
+               <div className="flex justify-between items-end border-b border-green-900 pb-2">
+                 <div className="flex items-center gap-2">
+                   <Activity className={`w-4 h-4 ${color.text}`} />
+                   <span className={`${color.text} font-bold`}>TARGET ACQUISITION</span>
+                 </div>
+                 <div className="text-xs text-zinc-500">Usage: {countRaw} / {accessLimit === Infinity ? '∞' : accessLimit}</div>
+               </div>
+               
+               <div className="flex justify-between items-center">
+                 <div className="flex-1 mr-4">
+                   <div className="mb-1">
+                     <input type="file" accept=".txt, .csv, .xlsx, .xls" onChange={handleFileUpload} className="hidden" id="upload" multiple />
+                     <label htmlFor="upload" className={`text-xs ${color.bgSoft} px-4 py-2 border ${color.border} cursor-pointer ${color.textBright} hover:${color.borderBright} w-full block text-center`}>
+                       <Upload className="w-4 h-4 inline mr-2" /> UPLOAD RAW LEADS
+                     </label>
+                   </div>
+                   <div className="text-[10px] text-zinc-500">Formats: .txt, .csv, .xlsx</div>
+                 </div>
+
+                 <div className="w-px h-10 bg-green-900/50 mx-2"></div>
+
+                 {/* DIRECT MAIL MODE */}
+                 <div className="flex-1 ml-4 border-l border-green-900/50 pl-4">
+                    <div className="mb-1">
+                      <input type="file" accept=".txt, .csv, .xlsx, .xls" onChange={handleDirectImport} className="hidden" id="direct-upload" multiple />
+                      <label htmlFor="direct-upload" className={`text-xs bg-blue-900/20 px-4 py-2 border border-blue-800 cursor-pointer text-blue-400 hover:bg-blue-900/40 w-full block text-center flex items-center justify-center gap-2`}>
+                        <Rocket className="w-4 h-4" /> ALREADY HAVE INTELLIGENCE?
+                      </label>
+                    </div>
+                    <div className="text-[10px] text-blue-500/70">Skip extraction. Load pre-enriched list.</div>
+                 </div>
+               </div>
+               
+               <textarea 
+                 value={rawInput} 
+                 onChange={e => setRawInput(e.target.value)} 
+                 className={`w-full h-64 bg-black border ${color.border} ${color.text} p-4 focus:outline-none focus:border-${theme}-500 text-sm`}
+                 placeholder="> Paste lead list or upload CSV/Excel..."
+               />
+               <div className="flex gap-2">
+                   <button onClick={extractDomains} className={`flex-1 py-4 ${color.bgSoft} border ${color.border} ${color.textBright} font-bold hover:bg-${theme}-900/30 tracking-widest`}>INITIALIZE EXTRACTION</button>
+                   <button onClick={handleRemoveDuplicates} className={`w-1/3 py-4 bg-zinc-900 border border-zinc-700 text-zinc-300 font-bold hover:bg-zinc-800 flex items-center justify-center gap-2`} title="Remove Duplicate Emails">
+                       <Filter className="w-4 h-4" /> REMOVE DUPLICATES
+                   </button>
+               </div>
+            </div>
+          )}
+
+          {/* STEP 2: DOMAINS */}
+          {currentStep === 2 && (
+             <div className="space-y-4 animate-in fade-in">
+                <div className={`flex items-center justify-between border-b ${color.border} pb-2 mb-4`}>
+                    <div className="flex items-center gap-2">
+                        <Database className={`w-4 h-4 ${color.text}`} />
+                        <span className={`${color.text} font-bold`}>TARGET VERIFICATION</span>
+                    </div>
+                    <span className={color.textBright}>{domains.length} DOMAINS IDENTIFIED</span>
+                </div>
+
+                <div className={`h-64 overflow-y-auto border ${color.border} p-4 ${color.textBright} font-mono text-xs bg-black/50`}>
+                   {domains.map((d, i) => <div key={i} className="hover:bg-green-900/20 px-2">{'>'} {d}</div>)}
+                </div>
+                <button onClick={searchCEOs} disabled={processing} className={`w-full py-4 ${color.bgSoft} border ${color.borderBright} ${color.textBright} font-bold hover:bg-${theme}-900/30 tracking-widest`}>
+                   {processing ? "SCANNING..." : "EXECUTE SEARCH PROTOCOL"}
+                </button>
+             </div>
+          )}
+
+          {/* STEP 3: ENRICHMENT (LIVE HUD) */}
+          {currentStep === 3 && (
+             <div className="space-y-4 animate-in fade-in">
+               {/* LIVE STATS HUD */}
+               <div className={`grid grid-cols-4 gap-2 mb-4 border ${color.border} bg-black/80 p-4 text-center sticky top-0 z-20`}>
+                  <div>
+                    <div className="text-[10px] text-zinc-500 uppercase">Targets</div>
+                    <div className={`text-lg font-bold ${color.textBright}`}>{domains.length}</div>
+                  </div>
+                  <div>
+                    <div className="text-[10px] text-zinc-500 uppercase">Scanned</div>
+                    <div className="text-lg font-bold text-zinc-300">{countEnriched}</div>
+                  </div>
+                  <div>
+                    <div className="text-[10px] text-zinc-500 uppercase">Identified</div>
+                    <div className={`text-lg font-bold ${color.text}`}>{countFound}</div>
+                  </div>
+                  <div>
+                    <div className="text-[10px] text-zinc-500 uppercase">Success Rate</div>
+                    <div className="text-lg font-bold text-blue-400">{countEnriched > 0 ? Math.round((countFound / countEnriched) * 100) : 0}%</div>
+                  </div>
+                  <div className="col-span-4 mt-2">
+                    <div className="w-full h-1 bg-zinc-800 rounded overflow-hidden">
+                       <div className={`h-full ${theme === 'green' ? 'bg-green-500' : 'bg-red-500'} transition-all duration-300`} style={{ width: `${progressPercent}%` }}></div>
+                    </div>
+                  </div>
+               </div>
+
+               {throttleWarning && (
+                 <div className="p-2 bg-yellow-900/20 border border-yellow-600 text-yellow-500 text-xs font-bold text-center animate-pulse">
+                   <AlertTriangle className="w-3 h-3 inline mr-1" /> {throttleWarning}
+                 </div>
+               )}
+
+               <div className={`h-80 overflow-y-auto border ${color.border} p-4 font-mono text-xs bg-black/50 shadow-inner`}>
+                  {searchLog.map((l, i) => (
+                    <div key={i} className={`flex gap-2 border-b ${color.border} border-opacity-30 py-1`}>
+                       <span className={l.status === 'ERROR' ? 'text-red-500 font-bold' : l.status === 'MISSING' ? 'text-zinc-500' : theme === 'green' ? 'text-green-400' : 'text-red-400'}>
+                         [{l.status === 'MISSING' ? 'FAIL' : l.status === 'ERROR' ? 'ERR' : l.status === 'WARN' ? 'RETRY' : 'OK'}]
+                       </span>
+                       <span className={color.textDim}>{l.domain}</span>
+                       <span className="text-zinc-600">::</span>
+                       <span className={l.status === 'FOUND' ? 'text-white font-bold' : 'text-zinc-600'}>{l.result}</span>
+                    </div>
+                  ))}
+                  <div ref={logEndRef} />
+               </div>
+               
+               {alarmActive && (
+                 <button onClick={handleStopAlarm} className="w-full py-4 bg-red-600 hover:bg-red-700 text-white font-bold flex items-center justify-center gap-2 animate-bounce">
+                   <VolumeX className="w-5 h-5" /> SILENCE ALARM / VOICE
+                 </button>
+               )}
+
+               {!processing && !alarmActive && (
+                   <button onClick={() => setCurrentStep(4)} className={`w-full py-4 ${color.bgSoft} border ${color.borderBright} ${color.textBright} font-bold animate-pulse`}>
+                     PROCEED TO DOWNLOAD RESULTS
+                   </button>
+               )}
+             </div>
+          )}
+
+           {/* STEP 4: DOWNLOAD RESULTS */}
+           {currentStep === 4 && (
+             <div className="space-y-6 animate-in fade-in text-center">
+                <div className={`p-8 border ${color.border} bg-black`}>
+                    <Database className={`w-16 h-16 mx-auto mb-4 ${color.text}`} />
+                    <h2 className={`text-2xl font-bold mb-2 ${color.textBright}`}>EXTRACTION COMPLETE</h2>
+                    <p className="text-zinc-400 mb-8">Successfully enriched {leads.length} targets with executive intelligence.</p>
+                    
+                    {accessLimit === 20 ? (
+                      <div className="w-full py-6 border border-red-600 text-red-500 font-bold bg-red-900/10 cursor-not-allowed flex items-center justify-center gap-2">
+                        <Lock className="w-5 h-5" /> TRIAL MODE RESTRICTION - UPGRADE LICENSE TO DOWNLOAD
+                      </div>
+                    ) : (
+                      <button onClick={downloadEnrichedList} className={`w-full py-6 ${theme === 'green' ? 'bg-green-600 hover:bg-green-500' : 'bg-red-600 hover:bg-red-500'} text-black font-bold text-xl shadow-[0_0_20px_rgba(0,255,0,0.4)] transition-all flex justify-center items-center gap-3`}>
+                        <Download className="w-6 h-6" />
+                        DOWNLOAD SECURE TEXT FILE
+                      </button>
+                    )}
+                </div>
+             </div>
+          )}
+        </div>
+
+        {/* Status Bar */}
+        <div className={`border-t ${color.border} p-2 px-6 flex justify-between text-xs ${color.textDim}`}>
+           <span>STATUS: {status || "IDLE"}</span>
+           <span>SECURE CONNECTION</span>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default App;
