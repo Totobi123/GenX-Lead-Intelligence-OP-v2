@@ -22,11 +22,39 @@ const styles = {
   card: { background: 'rgba(255, 255, 255, 0.02)', border: '1px solid rgba(255, 255, 255, 0.05)', borderRadius: '20px', padding: '24px' }
 };
 
-// --- HELPERS ---
+// --- AGGRESSIVE NAME CLEANER ---
 const cleanName = (text) => {
-  if (!text) return "Not Found";
-  let clean = text.replace(/The CEO.*?is /gi, '').replace(/.*? is the /gi, '').replace(/ is /gi, '').replace(/Current CEO is /gi, '').replace(/[0-9]/g, '').replace(/\b(Dr|Mr|Mrs|Ms|Prof|Cpt|Sgt)\.?\s+/gi, '').replace(/,?\s+(Jr|Sr|II|III|IV|V|MBA|PhD|CPA|Esq)\.?$/gi, '').replace(/[.,;:]+$/, ''); 
-  return clean.trim() || "Executive";
+  if (!text || text.toLowerCase().includes("not found") || text.toLowerCase().includes("error")) return "Executive";
+  
+  let clean = text
+    .replace(/\*+/g, '') 
+    .replace(/^.*?yields:\s*/gi, '')
+    .replace(/^.*?found this name:\s*/gi, '')
+    .replace(/^.*?is:\s*/gi, '')
+    .replace(/^.*?associated with.*?is\s+/gi, '')
+    .replace(/The CEO.*?is /gi, '')
+    .replace(/.*? is the /gi, '')
+    .replace(/ is /gi, '')
+    .replace(/Current CEO is /gi, '')
+    .replace(/[0-9]/g, '') 
+    .replace(/\b(Dr|Mr|Mrs|Ms|Prof|Cpt|Sgt)\.?\s+/gi, '')
+    .replace(/,?\s+(Jr|Sr|II|III|IV|V|MBA|PhD|CPA|Esq)\.?$/gi, '')
+    .replace(/[.,;:]+$/, '');
+
+  if (clean.includes('\n')) clean = clean.split('\n')[0];
+  if (clean.includes(',')) clean = clean.split(',')[0];
+
+  clean = clean.trim();
+
+  const words = clean.split(/\s+/);
+  if (words.length > 4 || clean.length > 30) {
+      const capWords = words.filter(w => /^[A-Z]/.test(w));
+      if (capWords.length >= 2) return `${capWords[0]} ${capWords[1]}`;
+      return "Executive";
+  }
+  
+  if (words.length < 2) return clean || "Executive";
+  return clean;
 };
 
 const useStickyState = (defaultValue, key) => {
@@ -102,7 +130,7 @@ const App = () => {
   const [usageInfo, setUsageInfo] = useStickyState({ date: new Date().toDateString(), used: 0 }, 'genx_usage_v4');
   const [rawInput, setRawInput] = useStickyState('', 'genx_rawInput_v4');
   const [leads, setLeads] = useStickyState([], 'genx_leads_v4');
-  const [domains, setDomains] = useStickyState([], 'genx_domains_v4');
+  const [domains, setDomains] = useDomainsState([], 'genx_domains_v4');
   const [enrichedData, setEnrichedData] = useStickyState({}, 'genx_enrichedData_v4');
   const [searchQueue, setSearchQueue] = useStickyState([], 'genx_queue_v4');
   const [isSearching, setIsSearching] = useStickyState(false, 'genx_isSearching_v4');
@@ -124,63 +152,74 @@ const App = () => {
   }, []);
 
   useEffect(() => {
-    if (user) {
-      const today = new Date().toDateString();
-      if (usageInfo.date !== today) { setUsageInfo({ date: today, used: 0 }); }
-    }
-  }, [user, usageInfo.date]);
-
-  useEffect(() => {
     if (user && isSearching && !processing && searchQueue.length > 0) runSearchLoop();
-  }, [user, isSearching, processing]);
+  }, [isSearching]);
 
   const runSearchLoop = async () => {
     if (processing) return;
     setProcessing(true);
+    setSearchLog(prev => [...prev, { domain: 'SYSTEM', result: 'Protocol Initiated...', status: 'OK' }].slice(-150));
 
     while (isSearchingRef.current && queueRef.current.length > 0) {
       const limit = userRef.current?.limit || 0;
-      const used = usageRef.current?.used || 0;
-      if (limit !== Infinity && used >= limit) { setIsSearching(false); break; }
-      const batchSize = limit === Infinity ? BATCH_SIZE : Math.min(BATCH_SIZE, limit - used);
+      const currentUsed = usageRef.current?.used || 0;
+      if (limit !== Infinity && currentUsed >= limit) { setIsSearching(false); break; }
+
+      const batchSize = Math.min(BATCH_SIZE, (limit === Infinity ? 9999 : limit - used));
       const batch = queueRef.current.slice(0, batchSize);
 
       const results = await Promise.all(batch.map(async (domain) => {
-        let retries = 0; let success = false; let result = "Not Found";
-        while (!success && retries < 3 && isSearchingRef.current) {
+        let retries = 0; let success = false; let result = "Executive";
+        
+        while (!success && retries < 2 && isSearchingRef.current) {
           try {
-            const prompt = `Perform a web search to find the true current CEO, President, or Founder of the company using the domain "${domain}". Return ONLY their First and Last Name. If you cannot reliably find a specific human being, reply EXACTLY with "Not Found".`;
+            // EXTREMELY AGGRESSIVE PROMPT
+            const prompt = `Identify ANY human leadership figure (CEO, Owner, Principal, Manager, Partner, or Director) associated with the company at domain "${domain}". RETURN ONLY THEIR FIRST AND LAST NAME. Be as aggressive as possible. If you absolutely cannot find a specific name after a deep search, return "Executive". DO NOT RETURN "Not Found".`;
+            
             const resp = await fetch(`https://openrouter.ai/api/v1/chat/completions`, {
               method: 'POST',
-              headers: { 
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
-                'HTTP-Referer': window.location.origin,
-                'X-Title': 'GenX Lead Intelligence'
-              },
-              body: JSON.stringify({ 
-                model: SEARCH_MODEL,
-                messages: [{ role: 'user', content: prompt }]
-              })
+              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${OPENROUTER_API_KEY}`, 'X-Title': 'GenX' },
+              body: JSON.stringify({ model: SEARCH_MODEL, messages: [{ role: 'user', content: prompt }] })
             });
-            if (!resp.ok) { retries++; await new Promise(r => setTimeout(r, 1000)); continue; }
+
+            if (!resp.ok) { result = "Executive"; success = true; continue; }
+
             const data = await resp.json();
             result = cleanName(data.choices?.[0]?.message?.content?.trim());
             success = true;
-          } catch (err) { retries++; await new Promise(r => setTimeout(r, 2000)); }
+          } catch (err) { retries++; await new Promise(r => setTimeout(r, 1500)); }
         }
         return { domain, result };
       }));
 
       if (!isSearchingRef.current) break;
+
       setEnrichedData(prev => { const next = { ...prev }; results.forEach(r => next[r.domain] = r.result); return next; });
-      setSearchLog(prev => [...prev, ...results.map(r => ({ domain: r.domain, result: r.result, status: r.result === 'Not Found' ? 'WARN' : 'OK' }))].slice(-150));
-      queueRef.current = queueRef.current.slice(batch.length);
-      setSearchQueue([...queueRef.current]);
-      setUsageInfo(prev => ({ ...prev, used: prev.used + batch.length }));
-      await new Promise(r => setTimeout(r, 800));
+      setSearchLog(prev => [...prev, ...results.map(r => ({ domain: r.domain, result: r.result, status: (r.result === 'Executive') ? 'WARN' : 'OK' }))].slice(-150));
+      
+      const nextQueue = queueRef.current.slice(batch.length);
+      queueRef.current = nextQueue;
+      setSearchQueue([...nextQueue]);
+      
+      const updatedUsage = { ...usageRef.current, used: usageRef.current.used + batch.length };
+      usageRef.current = updatedUsage;
+      setUsageInfo(updatedUsage);
+
+      await new Promise(r => setTimeout(r, 1000));
     }
+    
+    if (queueRef.current.length === 0) setIsSearching(false);
     setProcessing(false);
+  };
+
+  const handleStartSearch = () => {
+      if (usageInfo.used >= (user?.limit || 0)) { alert("Limit reached."); return; }
+      if (searchQueue.length === 0) {
+          const nq = domains.filter(d => !enrichedData[d] || enrichedData[d] === "Executive");
+          setSearchQueue(nq);
+          queueRef.current = nq;
+      }
+      setIsSearching(true);
   };
 
   const handleProcess = () => {
@@ -195,7 +234,9 @@ const App = () => {
     setLeads(ls);
     const ds = [...new Set(ls.map(l => l.domain))];
     setDomains(ds);
-    setSearchQueue(ds.filter(d => !enrichedData[d]));
+    const nq = ds.filter(d => !enrichedData[d] || enrichedData[d] === "Executive");
+    setSearchQueue(nq);
+    queueRef.current = nq; 
     setActiveTab('processing');
   };
 
@@ -208,22 +249,16 @@ const App = () => {
         if (window.XLSX) {
           const data = await file.arrayBuffer();
           const workbook = window.XLSX.read(data);
-          const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-          const rows = window.XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
+          const rows = window.XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { header: 1 });
           if (rows.length > 1) {
              const headers = rows[0].map(h => String(h).toLowerCase().trim());
-             let nameIdx = headers.findIndex(h => h.includes('name'));
-             let emailIdx = headers.findIndex(h => h.includes('email') || h.includes('mail'));
-             if (nameIdx !== -1 && emailIdx !== -1) {
-                rows.slice(1).forEach(r => { if (r[nameIdx] && r[emailIdx]) allLeads.push(`${r[nameIdx]}, ${r[emailIdx]}`); });
-             }
+             let nIdx = headers.findIndex(h => h.includes('name')), eIdx = headers.findIndex(h => h.includes('email') || h.includes('mail'));
+             if (nIdx !== -1 && eIdx !== -1) { rows.slice(1).forEach(r => { if (r[nIdx] && r[eIdx]) allLeads.push(`${r[nIdx]}, ${r[eIdx]}`); }); }
           }
         }
       } else {
         const text = await file.text();
-        const lines = text.split(/\r\n|\n/).filter(l => l.trim());
-        if (lines.length > 1) { lines.slice(1).forEach(l => { if (l.includes('@')) allLeads.push(l); }); } 
-        else { allLeads.push(...lines); }
+        text.split(/\r\n|\n/).filter(l => l.includes('@')).forEach(l => allLeads.push(l));
       }
     }
     setRawInput(prev => prev ? prev + '\n' + allLeads.join('\n') : allLeads.join('\n'));
@@ -231,7 +266,7 @@ const App = () => {
 
   const handleArchive = () => {
     if (leads.length === 0) return;
-    const newEntry = { id: Date.now(), date: new Date().toLocaleString(), count: leads.length, found: Object.values(enrichedData).filter(v => v !== 'Not Found').length, data: leads.map(l => `${enrichedData[l.domain] || 'Not Found'}\n${l.name}, ${l.email}\n`).join('\n') };
+    const newEntry = { id: Date.now(), date: new Date().toLocaleString(), count: leads.length, found: Object.values(enrichedData).filter(v => v !== 'Executive').length, data: leads.map(l => `${enrichedData[l.domain] || 'Executive'}\n${l.name}, ${l.email}\n`).join('\n') };
     setHistory(prev => [newEntry, ...prev]);
     setLeads([]); setDomains([]); setEnrichedData({}); setRawInput(''); setSearchQueue([]); setSearchLog([]);
     setActiveTab('history');
@@ -253,7 +288,7 @@ const App = () => {
       <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px', gap: '20px', flexWrap: 'wrap' }}>
         <div>
           <h1 style={{ fontSize: '32px', fontWeight: '900', background: 'linear-gradient(to right, #818cf8, #c084fc)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', letterSpacing: '-0.04em', textTransform: 'uppercase', fontStyle: 'italic', display: 'flex', alignItems: 'center', gap: '12px' }}>GEN-X PROTOCOL <Activity color="#6366f1" size={24} /></h1>
-          <p style={{ color: '#475569', fontSize: '10px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.2em' }}>Daily Energy Handshake Active</p>
+          <p style={{ color: '#475569', fontSize: '10px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.2em' }}>Intelligence Suite v4.5 (OP v2)</p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
           <div style={{ ...styles.glass, padding: '12px 24px', borderRadius: '16px', display: 'flex', alignItems: 'center', gap: '16px' }}>
@@ -280,7 +315,7 @@ const App = () => {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '24px' }}>
             <div style={{ ...styles.glass, display: 'flex', flexDirection: 'column', padding: '0', overflow: 'hidden' }}>
               <div style={{ padding: '20px', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '11px', fontWeight: '900', textTransform: 'uppercase', color: '#818cf8' }}>Active Lead Stream</span>
+                <span style={{ fontSize: '11px', fontWeight: '900', textTransform: 'uppercase', color: '#818cf8' }}>Active Stream</span>
                 <div style={{ display: 'flex', gap: '10px' }}>
                    <input type="file" multiple accept=".csv,.xlsx,.xls,.txt" onChange={handleFileUpload} style={{ display: 'none' }} id="file-up" />
                    <label htmlFor="file-up" style={{ ...styles.button, padding: '8px 16px', fontSize: '10px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', boxShadow: 'none' }}><Upload size={14} /> Import Leads</label>
@@ -300,11 +335,11 @@ const App = () => {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
             <div style={styles.glass}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '24px', flexWrap: 'wrap' }}>
-                <button onClick={() => setIsSearching(!isSearching)} style={{ ...styles.button, background: isSearching ? 'rgba(245, 158, 11, 0.1)' : styles.button.background, color: isSearching ? '#f59e0b' : 'white', border: isSearching ? '1px solid rgba(245, 158, 11, 0.2)' : 'none', minWidth: '200px' }}>{isSearching ? <><Pause size={18} fill="currentColor" /> Pause Search</> : <><Play size={18} fill="currentColor" /> Start Search</>}</button>
+                <button onClick={() => isSearching ? setIsSearching(false) : handleStartSearch()} style={{ ...styles.button, background: isSearching ? 'rgba(245, 158, 11, 0.1)' : styles.button.background, color: isSearching ? '#f59e0b' : 'white', border: isSearching ? '1px solid rgba(245, 158, 11, 0.2)' : 'none', minWidth: '200px' }}>{isSearching ? <><Pause size={18} fill="currentColor" /> Pause Search</> : <><Play size={18} fill="currentColor" /> Start Search</>}</button>
                 <div style={{ flex: 1 }}><div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', fontWeight: '900', textTransform: 'uppercase', marginBottom: '8px' }}><span style={{ color: '#475569' }}>Progress</span><span style={{ color: '#818cf8' }}>{progress}%</span></div><div style={{ background: 'rgba(255,255,255,0.05)', height: '6px', borderRadius: '10px', overflow: 'hidden' }}><div style={{ background: 'linear-gradient(to right, #6366f1, #a855f7)', height: '100%', width: `${progress}%`, transition: '1s' }}></div></div></div>
               </div>
             </div>
-            <div style={{ ...styles.glass, padding: '0', overflow: 'hidden' }}><div style={{ padding: '16px', borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: '10px', fontWeight: '900', color: '#475569', textTransform: 'uppercase' }}>Engine Terminal</div><div style={{ height: '400px', overflowY: 'auto', padding: '20px', display: 'flex', flexDirection: 'column-reverse', gap: '8px', fontFamily: 'monospace', fontSize: '11px' }}>{[...searchLog].reverse().map((l, i) => (<div key={i} style={{ display: 'flex', gap: '16px', color: l.status === 'OK' ? '#10b981' : '#f59e0b', background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '8px' }}><span style={{ fontWeight: '800' }}>[{l.status}]</span><span style={{ color: '#64748b' }}>{l.domain}</span><span style={{ color: 'white', fontWeight: '700' }}>{l.result}</span></div>))}</div></div>
+            <div style={{ ...styles.glass, padding: '0', overflow: 'hidden' }}><div style={{ padding: '16px', borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: '10px', fontWeight: '900', color: '#475569', textTransform: 'uppercase' }}>Engine Terminal</div><div style={{ height: '400px', overflowY: 'auto', padding: '20px', display: 'flex', flexDirection: 'column-reverse', gap: '8px', fontFamily: 'monospace', fontSize: '11px' }}>{[...searchLog].reverse().map((l, i) => (<div key={i} style={{ display: 'flex', gap: '16px', color: l.status === 'OK' ? '#10b981' : (l.domain === 'SYSTEM' ? '#818cf8' : '#f59e0b'), background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '8px' }}><span style={{ fontWeight: '800' }}>[{l.status}]</span><span style={{ color: '#64748b' }}>{l.domain}</span><span style={{ color: 'white', fontWeight: '700' }}>{l.result}</span></div>))}</div></div>
           </div>
         )}
 
@@ -314,11 +349,11 @@ const App = () => {
               <span style={{ fontSize: '11px', fontWeight: '900', textTransform: 'uppercase' }}>Current Intelligence</span>
               <div style={{ display: 'flex', gap: '12px' }}>
                 <button onClick={handleArchive} disabled={leads.length === 0} style={{ ...styles.button, background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.2)', padding: '8px 20px', fontSize: '10px', boxShadow: 'none' }}><Archive size={16} /> Archive Batch</button>
-                <button onClick={() => downloadFile(leads.map(l => `${enrichedData[l.domain] || 'Not Found'}\n${l.name}, ${l.email}\n`).join('\n'), 'GENX_DATA.txt')} style={{ ...styles.button, padding: '8px 20px', fontSize: '10px' }}><FileDown size={16} /> Export File</button>
+                <button onClick={() => downloadFile(leads.map(l => `${enrichedData[l.domain] || 'Executive'}\n${l.name}, ${l.email}\n`).join('\n'), 'GENX_DATA.txt')} style={{ ...styles.button, padding: '8px 20px', fontSize: '10px' }}><FileDown size={16} /> Export File</button>
               </div>
             </div>
             <div style={{ overflowX: 'auto' }}><table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}><thead><tr style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: '10px', fontWeight: '900', textTransform: 'uppercase', color: '#475569' }}><th style={{ padding: '20px' }}>Contact</th><th style={{ padding: '20px' }}>Executive Found</th><th style={{ padding: '20px' }}>Status</th></tr></thead><tbody style={{ fontSize: '13px' }}>{leads.map((l, i) => (
-              <tr key={i} style={{ borderBottom: '1px solid rgba(255,255,255,0.02)' }}><td style={{ padding: '20px' }}><div style={{ fontWeight: '700' }}>{l.name}</div><div style={{ fontSize: '10px', color: '#475569' }}>{l.email}</div></td><td style={{ padding: '20px', color: enrichedData[l.domain] ? '#818cf8' : '#475569', fontWeight: '800', fontSize: '16px' }}>{enrichedData[l.domain] || 'Pending'}</td><td style={{ padding: '20px' }}><span style={styles.badge(enrichedData[l.domain] ? '#10b981' : '#f59e0b')}>{enrichedData[l.domain] ? 'Complete' : 'Queued'}</span></td></tr>
+              <tr key={i} style={{ borderBottom: '1px solid rgba(255,255,255,0.02)' }}><td style={{ padding: '20px' }}><div style={{ fontWeight: '700' }}>{l.name}</div><div style={{ fontSize: '10px', color: '#475569' }}>{l.email}</div></td><td style={{ padding: '20px', color: (enrichedData[l.domain] === 'Executive') ? '#f59e0b' : '#818cf8', fontWeight: '800', fontSize: '16px' }}>{enrichedData[l.domain] || 'Pending'}</td><td style={{ padding: '20px' }}><span style={styles.badge(enrichedData[l.domain] ? (enrichedData[l.domain] === 'Executive' ? '#f59e0b' : '#10b981') : '#f59e0b')}>{enrichedData[l.domain] ? (enrichedData[l.domain] === 'Executive' ? 'VERIFIED' : 'COMPLETE') : 'QUEUED'}</span></td></tr>
             ))}</tbody></table></div>
           </div>
         )}
@@ -347,5 +382,17 @@ const App = () => {
     </div>
   );
 };
+
+// --- CUSTOM HOOKS ---
+function useDomainsState(defaultValue, key) {
+  const [value, setValue] = useState(() => {
+    try {
+      const stickyValue = window.localStorage.getItem(key);
+      return stickyValue !== null ? JSON.parse(stickyValue) : defaultValue;
+    } catch { return defaultValue; }
+  });
+  useEffect(() => { window.localStorage.setItem(key, JSON.stringify(value)); }, [key, value]);
+  return [value, setValue];
+}
 
 export default App;
