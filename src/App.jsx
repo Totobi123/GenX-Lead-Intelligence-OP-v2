@@ -8,51 +8,8 @@ import {
 } from 'lucide-react';
 
 // --- CONFIGURATION ---
-const GEMINI_API_KEYS = [
-  "AIzaSyDR9AYH58yFOdv5PWmg2iZhaYeMdHNsHoA",
-  "AIzaSyA47o43lPXmuzrQDMt-hg0-_9hceb8_0os",
-  "AIzaSyARZ0bGLYFCY_YE5dMOeVUtSNJbf73JnDE",
-  "AIzaSyDRvrFfh0e-4-EGZb_cucLqSgwgJ-AYwXw",
-  "AIzaSyCBuvUcoLJu3WM1biS-n6jgRPt2CJoD090",
-  "AIzaSyDW8M1xIDeqDlQWt_8p0D7OQG8aHqKOC_Q",
-  "AIzaSyC5A471a1ikQOXa9VMcAQhdA84P7no9RmE",
-  "AIzaSyAxeVK2Nsw2a-UONZFuDoIMV2omv0jnVVI",
-  "AIzaSyAiun7xqQMM17mkKNXWolDtJCw4wGnfaPk",
-  "AIzaSyDoj84HL5-2gwI8wQwSKy2mbnIW6U0IFfM",
-  "AIzaSyDW0BJnjtKZAxDSd5VDLFWcR4Fmt9GXrdQ",
-  "AIzaSyDcBGXm4jL49LHVV51EvEdAS4cJ1hEnF9Q",
-  "AIzaSyBtKhR3v9cz3joX9PueZBWi5RTwG1dnLY0",
-  "AIzaSyBKt7BqZJmi-Yd3IppO0Q1zPOOHPw85ofw",
-  "AIzaSyBQIKgHWvVuVlkvLLdpbCRWX6WxoG7Q2bw",
-  "AIzaSyB2RUCoTWNKBTuMo4sG8pmi2nknK3I4fX8",
-  "AIzaSyAOyj3t9KHLd4SzmyecrFGrd-DPbNc6FTQ",
-  "AIzaSyAsDWPu_j9ZzNOhXPJ2x6UN26JypZP2SrQ",
-  "AIzaSyAuA8FNG0Y0Viw29NDWKEDvJMMGuVypXE0",
-  "AIzaSyCHpKnVBgPmKpazEbdV53AprvBwTBSj10k",
-  "AIzaSyCqfJ4EUcGGO1p2XNVLPv7oTaK60_wBTZA",
-  "AIzaSyDNNMI8BpG0ZwHa2ovfbByuy-Xg7nu4bWc",
-  "AIzaSyBKmVcXjDWYHzu6yznhIo9jUrS3Lodl5D8",
-  "AIzaSyDUqoyhxvLmVhtSPJDEbB2kb-4JuuONGSw",
-  "AIzaSyCu-G69SOWud9YFIG1qS3SA7WzswzJWFXI",
-  "AIzaSyA9J4U0eiF8Wv72nBb7mMZfggMUshAZOdw",
-  "AIzaSyDYdWxFDNbF0DXK_Gky5o3H_aFW_QRtKJ4",
-  "AIzaSyBGEUNh_ms9jM6JmS6c-2PBzOe5P_WX8bU",
-  "AIzaSyCKGiNX921pZcSqed9LWx0RLtvsF2PnPuY",
-  "AIzaSyCfkJExv7yJ6zq31ySXh7CL9eu2C86ik_E",
-  "AIzaSyD2oaxC67_0Sgux0637tmTJcXAI9pk4YrM",
-  "AIzaSyCkRcNFHT92Pj5dd7qMsjQIRnC41DfoVrQ",
-  "AIzaSyCpOXsaQxCjbEPO6V33K8Q_bXDlm-fXCeU",
-  "AIzaSyDXpTQT3Tdpw-tA1fcwsTXIKlz5YU2ob2g",
-  "AIzaSyDiQxz6ajKMQTTYBNmjyDZQbbM6XRGbd_4",
-  "AIzaSyAkUnDl8yCDKNyLxQrsEObdgihjjlZq-9k",
-  "AIzaSyC5LviUmCtVOu5VCVYKCp946xziCEKfEKY",
-  "AIzaSyAtRiNGLz3oTJ05Vinub-y6_NSxMvvSR8w",
-  "AIzaSyCDOJYqhT1xaQoxnGhHG9f5BMyfo2DM_1c",
-  "AIzaSyDbALrhQJ83yTtq4doJuo28H-q_x-EQAvM",
-  "AIzaSyAwl9os7BlizooLG7HuHhEmpLtl0_Y0YoM",
-  "AIzaSyDifSZBlO8vMQrbU1xHTRy4R6A2UR7xvaY"
-];
-
+const OPENROUTER_API_KEY = "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";
+const SEARCH_MODEL = "google/gemini-2.0-flash-001";
 const BATCH_SIZE = 5;
 
 // --- STYLES ---
@@ -180,7 +137,6 @@ const App = () => {
   const runSearchLoop = async () => {
     if (processing) return;
     setProcessing(true);
-    let keyIdx = Math.floor(Math.random() * GEMINI_API_KEYS.length);
 
     while (isSearchingRef.current && queueRef.current.length > 0) {
       const limit = userRef.current?.limit || 0;
@@ -193,15 +149,23 @@ const App = () => {
         let retries = 0; let success = false; let result = "Not Found";
         while (!success && retries < 3 && isSearchingRef.current) {
           try {
-            const key = GEMINI_API_KEYS[keyIdx % GEMINI_API_KEYS.length]; keyIdx++;
             const prompt = `Perform a web search to find the true current CEO, President, or Founder of the company using the domain "${domain}". Return ONLY their First and Last Name. If you cannot reliably find a specific human being, reply EXACTLY with "Not Found".`;
-            const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`, {
-              method: 'POST', headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], tools: [{ google_search: {} }] })
+            const resp = await fetch(`https://openrouter.ai/api/v1/chat/completions`, {
+              method: 'POST',
+              headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
+                'HTTP-Referer': window.location.origin,
+                'X-Title': 'GenX Lead Intelligence'
+              },
+              body: JSON.stringify({ 
+                model: SEARCH_MODEL,
+                messages: [{ role: 'user', content: prompt }]
+              })
             });
             if (!resp.ok) { retries++; await new Promise(r => setTimeout(r, 1000)); continue; }
             const data = await resp.json();
-            result = cleanName(data.candidates?.[0]?.content?.parts?.[0]?.text?.trim());
+            result = cleanName(data.choices?.[0]?.message?.content?.trim());
             success = true;
           } catch (err) { retries++; await new Promise(r => setTimeout(r, 2000)); }
         }
